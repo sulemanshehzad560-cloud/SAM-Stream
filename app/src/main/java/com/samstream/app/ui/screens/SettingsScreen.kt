@@ -157,7 +157,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 "SAM Stream does not host any video.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text("SAM Stream 1.3", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("SAM Stream 1.4", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
     }
 }

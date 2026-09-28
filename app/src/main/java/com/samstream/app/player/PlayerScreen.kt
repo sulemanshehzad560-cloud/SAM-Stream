@@ -4,14 +4,17 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
@@ -119,44 +124,109 @@ private fun DirectVideo(r: PlayRequest, vm: AppViewModel) {
 }
 
 /**
- * YouTube's own embedded player (IFrame embed) in a WebView, so the rights holder keeps their ads and analytics.
- * YouTube requires embeds in apps to send a Referer identifying the app.
+ * YouTube's own IFrame player inside a WebView, so the rights holder keeps their ads and analytics.
+ * The page is loaded with base URL https://<package> so YouTube sees the app's identity (required for embeds in
+ * apps since 2025; without it videos fail with error 152/153). Nothing ever navigates out of the app: links such as
+ * "Watch on YouTube" are blocked, and player errors are explained on screen instead.
  */
-@SuppressLint("SetJavaScriptEnabled")
+@SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
 @Composable
 private fun YouTubeEmbed(r: PlayRequest, vm: AppViewModel) {
+    var error by remember(r.sourceId) { mutableStateOf<String?>(null) }
+    var loading by remember(r.sourceId) { mutableStateOf(true) }
+    val main = remember { Handler(Looper.getMainLooper()) }
+    var lastPos by remember(r.sourceId) { mutableStateOf(r.startMs to 0L) }
+
     DisposableEffect(r.sourceId) {
-        vm.saveProgress(r, 0, 0)
-        onDispose { }
+        onDispose { vm.saveProgress(r, lastPos.first, lastPos.second) }
     }
+
+    val bridge = remember(r.sourceId) {
+        YouTubeBridge(
+            errorCb = { code -> main.post { loading = false; error = youtubeErrorText(code) } },
+            playingCb = { main.post { loading = false; error = null } },
+            timeCb = { sec, dur -> main.post { lastPos = (sec * 1000).toLong() to (dur * 1000).toLong() } },
+        )
+    }
+
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
+                settings.setSupportMultipleWindows(false)
                 keepScreenOn = true
                 setBackgroundColor(android.graphics.Color.BLACK)
                 webChromeClient = WebChromeClient()
                 webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        val host = request.url.host.orEmpty()
-                        if (host.endsWith("youtube.com") && request.url.path.orEmpty().startsWith("/embed")) return false
-                        // Links out of the player (channel, "Watch on YouTube") open in the YouTube app/browser.
-                        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
-                        return true
-                    }
+                    // Stay inside SAM Stream: never open YouTube, the browser or any other site.
+                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
                 }
-                val start = (r.startMs / 1000).toInt()
-                loadUrl(
-                    "https://www.youtube.com/embed/${Uri.encode(r.url)}?autoplay=1&playsinline=1&rel=0&fs=0&start=$start",
-                    mapOf("Referer" to "https://${ctx.packageName}"),
-                )
+                addJavascriptInterface(bridge, "SAM")
+                val origin = "https://${ctx.packageName}"
+                loadDataWithBaseURL(origin, youtubeHtml(r.url, (r.startMs / 1000).toInt(), origin), "text/html", "utf-8", null)
             }
         },
         onRelease = { it.destroy() },
         modifier = Modifier.fillMaxSize(),
     )
+
+    if (loading && error == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color(0xFFFFC83D)) }
+    error?.let { msg ->
+        Column(
+            Modifier.fillMaxSize().background(Color(0xF0000000)).padding(48.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Can't play this video here", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text(msg, color = Color(0xFFCFC8D9), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp))
+        }
+    }
+}
+
+/** Called from the YouTube page's JavaScript (on a background thread). */
+class YouTubeBridge(
+    private val errorCb: (Int) -> Unit,
+    private val playingCb: () -> Unit,
+    private val timeCb: (Double, Double) -> Unit,
+) {
+    @JavascriptInterface fun onError(code: Int) = errorCb(code)
+    @JavascriptInterface fun onPlaying() = playingCb()
+    @JavascriptInterface fun onTime(seconds: Double, duration: Double) = timeCb(seconds, duration)
+}
+
+private fun youtubeErrorText(code: Int): String = when (code) {
+    100 -> "This video was removed or made private. It will be hidden after the next refresh."
+    101, 150 -> "The owner doesn't allow this video to play inside other apps. Go back and pick another title."
+    152, 153 -> "YouTube refused the in-app player for this video. Go back and pick another title."
+    2 -> "YouTube rejected the video link."
+    5 -> "This video can't play in the in-app player on this phone."
+    else -> "YouTube error $code."
+}
+
+private fun youtubeHtml(videoId: String, start: Int, origin: String): String {
+    val id = videoId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+    return """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#p{position:absolute;top:0;left:0;width:100%;height:100%}</style>
+</head><body><div id="p"></div>
+<script>
+var player;
+function onYouTubeIframeAPIReady(){
+  player = new YT.Player('p', {
+    width:'100%', height:'100%', videoId:'$id',
+    playerVars:{autoplay:1, playsinline:1, rel:0, fs:0, iv_load_policy:3, start:$start, origin:'$origin', widget_referrer:'$origin'},
+    events:{
+      onReady:function(e){ e.target.playVideo(); },
+      onError:function(e){ SAM.onError(e.data); },
+      onStateChange:function(e){ if(e.data===1){ SAM.onPlaying(); } }
+    }
+  });
+  setInterval(function(){ try{ if(player && player.getCurrentTime){ SAM.onTime(player.getCurrentTime(), player.getDuration()); } }catch(x){} }, 5000);
+}
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body></html>"""
 }
 
 /** Landscape, full-screen while the player is open; restores the previous state afterwards. */

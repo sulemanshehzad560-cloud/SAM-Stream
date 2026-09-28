@@ -123,8 +123,13 @@ fun TitleScreen(vm: AppViewModel, nav: NavHostController) {
                         Text("Streams from ${best.source.providerName} · ${best.verdict.level.label}", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally))
                     }
-                    ext != null -> GoldButton("Watch free on ${ext.source.providerName}", { open(context, ext.source.pageUrl) }, Modifier.fillMaxWidth(),
-                        icon = Icons.AutoMirrored.Outlined.OpenInNew, height = 56.dp)
+                    ext != null -> {
+                        GoldButton("Open in ${ext.source.providerName}", { open(context, providerUrl(ext.source)) }, Modifier.fillMaxWidth(),
+                            icon = Icons.AutoMirrored.Outlined.OpenInNew, height = 56.dp)
+                        Text("Streaming services only play their films in their own app or website, so this one opens ${ext.source.providerName}.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp))
+                    }
                     else -> NoSource(t)
                 }
 
@@ -190,13 +195,29 @@ private fun SourceCard(vs: VerifiedSource, onPlay: () -> Unit, context: Context)
                 when {
                     v.playableInApp -> GoldButton("Watch free", onPlay, height = 44.dp)
                     vs.canWatch && s.playback == PlaybackKind.EXTERNAL_APP ->
-                        GoldButton("Open ${s.providerName}", { open(context, s.pageUrl) }, icon = Icons.AutoMirrored.Outlined.OpenInNew, height = 44.dp)
+                        GoldButton("Open ${s.providerName}", { open(context, providerUrl(s)) }, icon = Icons.AutoMirrored.Outlined.OpenInNew, height = 44.dp)
                     v.level == RightsLevel.UNVERIFIED -> Text("Not played until the rights are verified.", style = MaterialTheme.typography.bodySmall, color = accent)
                     else -> Unit
                 }
                 if (s.playback != PlaybackKind.EXTERNAL_APP) GlassButton("Source", { open(context, s.pageUrl) }, height = 44.dp)
             }
         }
+    }
+}
+
+/**
+ * Streaming services: go straight to the service (its app opens if installed) instead of TMDB's listing page.
+ * Source ids look like "svc:<TMDB provider id>:<TMDB title id>".
+ */
+private fun providerUrl(s: com.samstream.app.domain.Source): String {
+    val providerId = s.id.split(':').getOrNull(1)?.toIntOrNull()
+    val q = Uri.encode(s.title)
+    return when (providerId) {
+        73 -> "https://tubitv.com/search/$q"                              // Tubi
+        192 -> "https://www.youtube.com/results?search_query=" + Uri.encode("${s.title} ${s.year ?: ""} full movie") // YouTube (free with ads)
+        300 -> "https://pluto.tv/search/details?query=$q"                 // Pluto TV
+        538 -> "https://watch.plex.tv/search?q=$q"                        // Plex
+        else -> s.pageUrl
     }
 }
 

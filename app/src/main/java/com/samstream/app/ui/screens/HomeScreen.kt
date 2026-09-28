@@ -167,7 +167,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                 Column(Modifier.padding(top = 26.dp)) {
                     SectionHeader(
                         "Free on streaming apps",
-                        "Licensed free or with ads in ${Locale("", settings.country).displayCountry} · opens in their app",
+                        "Free in ${Locale("", settings.country).displayCountry} · these open in the service's own app, not here",
                         Modifier.padding(horizontal = 16.dp),
                     )
                     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 12.dp)) {
@@ -180,7 +180,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
             item(key = "mainHeader") {
                 SectionHeader(
                     if (category == null) "Tonight's free movies" else "${category!!.emoji} Free ${category!!.label.lowercase()}",
-                    "Free & legal · plays right here",
+                    "Free & legal · plays inside SAM Stream",
                     Modifier.padding(horizontal = 16.dp).padding(top = 28.dp, bottom = 12.dp),
                 )
             }
