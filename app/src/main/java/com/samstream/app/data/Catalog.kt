@@ -95,6 +95,42 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
         tmdbProblem = tmdbMessage(e); null
     }
 
+    /** Last YouTube problem in plain words (bad key, quota used up, key restricted…). */
+    @Volatile var youtubeProblem: String? = null
+        private set
+
+    private fun youtubeMessage(e: Throwable): String {
+        val h = e as? HttpException ?: return "Couldn't reach YouTube. Check your connection."
+        val r = h.reasons
+        return when {
+            "quota" in r -> "YouTube's free daily limit for your key is used up (each search uses 100 of 10,000 units). It resets at midnight Pacific time (11 am UAE)."
+            "android_app_blocked" in r || "ios_app_blocked" in r || "referer" in r || "ip_address_blocked" in r || "ipblocked" in r ->
+                "Your YouTube key is restricted. In Google Cloud → Credentials → your key, set \"Application restrictions\" to None, then save."
+            "service_blocked" in r || "api_key_service_blocked" in r ->
+                "Your key isn't allowed to use YouTube. In Google Cloud → Credentials → your key, add \"YouTube Data API v3\" under API restrictions (or choose Don't restrict)."
+            "accessnotconfigured" in r || "has not been used" in r || "is disabled" in r || "service_disabled" in r ->
+                "YouTube Data API v3 isn't turned on for this key's project. In Google Cloud → APIs & Services → Library, open YouTube Data API v3 and tap Enable."
+            "keyinvalid" in r || "api key not valid" in r || "api_key_invalid" in r ->
+                "YouTube says this key isn't valid. Copy the key again from Google Cloud → Credentials (it starts with AIza, 39 characters)."
+            else -> "YouTube error ${h.code}${r.substringBefore(' ').takeIf { it.isNotBlank() }?.let { ": $it" } ?: ""}."
+        }
+    }
+
+    /** Checks a YouTube key. Returns null when it works, otherwise what's wrong. */
+    suspend fun checkYoutubeKey(key: String): String? {
+        val k = cleanKey(key)
+        if (k.isEmpty()) return "Paste your YouTube key first."
+        return try {
+            Http.getJson(YouTubeApi.checkUrl(k)); youtubeProblem = null; null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            youtubeMessage(e)
+        }
+    }
+
+    private val minYear: Int? get() = if (settings.modernOnly) MIN_YEAR else null
+
     /** Checks a key before saving it. Returns null when it works, otherwise what's wrong. */
     suspend fun checkTmdbKey(key: String): String? {
         val k = cleanKey(key)
@@ -113,7 +149,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
     suspend fun freeOnServices(): List<Title> = coroutineScope {
         val key = settings.tmdbKey.ifBlank { return@coroutineScope emptyList<Title>() }
         val infos = tmdbCall {
-            val (url, headers) = TmdbApi.discoverFreeUrl(key, settings.country)
+            val (url, headers) = TmdbApi.discoverFreeUrl(key, settings.country, minYear = minYear)
             TmdbApi.parseDiscover(Http.getJson(url, headers))
         }.orEmpty().take(18)
         val withServices = infos.map { async { freeServices(it) } }.awaitAll()
@@ -143,6 +179,17 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
                 vs.verdict.level != RightsLevel.BLOCKED && (showUnverified || vs.verdict.level != RightsLevel.UNVERIFIED)
             })
         }.filter { it.sources.isNotEmpty() || (keepEmptyCatalogueTitles && it.tmdbId != null) }
+            .filter { modernEnough(it) }
+    }
+
+    /**
+     * "Only 1995 and newer": drops titles released earlier. A title with no known year is kept only when it comes from
+     * YouTube or a streaming service (new uploads); undated Internet Archive items are almost always old films.
+     */
+    private fun modernEnough(t: Title): Boolean {
+        val min = minYear ?: return true
+        val year = t.year ?: return t.tmdbId != null || t.sources.any { it.source.provider != ProviderType.INTERNET_ARCHIVE }
+        return year >= min
     }
 
     // ---------- home ----------
@@ -150,12 +197,12 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
     suspend fun browse(category: Category?, page: Int = 1): List<Title> = coroutineScope {
         val archive = async {
             runCatching {
-                val url = ArchiveApi.searchUrl(null, category?.archiveFilter, rows = 60, page = page, collections = category?.browseCollections ?: "feature_films")
+                val url = ArchiveApi.searchUrl(null, category?.archiveFilter, rows = 60, page = page, collections = category?.browseCollections ?: "feature_films", minYear = minYear)
                 ArchiveApi.parseSearch(Http.getJson(url))
             }
                 .getOrDefault(emptyList())
         }
-        val youtube = async { if (category != null) youtubeSearch(category.youtubeQuery) else emptyList() }
+        val youtube = async { youtubeSearch(category?.youtubeQuery ?: "full movie") }
         val sources = archive.await() + youtube.await()
         val titles = Titles.merge(verifyAll(sources, emptyList()), emptyList())
         visible(titles, keepEmptyCatalogueTitles = false).filter { it.inApp.isNotEmpty() }
@@ -165,7 +212,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
 
     suspend fun search(query: String): SearchResult = coroutineScope {
         val notes = mutableListOf<String>()
-        val archive = async { runCatching { ArchiveApi.parseSearch(Http.getJson(ArchiveApi.searchUrl(query, rows = 40))) } }
+        val archive = async { runCatching { ArchiveApi.parseSearch(Http.getJson(ArchiveApi.searchUrl(query, rows = 40, minYear = minYear))) } }
         val youtube = async { youtubeSearch(query) }
         val tmdb = async { tmdbSearch(query) }
 
@@ -179,6 +226,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
         if (settings.tmdbKey.isBlank()) notes += "Add a free TMDB key in Settings to see posters and free services like Tubi or Pluto TV in your country."
         else tmdbProblem?.let { notes += it }
         if (settings.youtubeKey.isBlank()) notes += "Add a YouTube API key in Settings to include Creative Commons and official-channel films."
+        else youtubeProblem?.let { notes += it }
 
         val merged = Titles.merge(verifyAll(archiveSources + youtube.await() + serviceSources, enriched), enriched)
         SearchResult(visible(merged, keepEmptyCatalogueTitles = true), notes)
@@ -186,7 +234,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
 
     private suspend fun youtubeSearch(query: String): List<Source> {
         val key = settings.youtubeKey.ifBlank { return emptyList() }
-        return runCatching {
+        return try {
             val ids = mutableListOf<String>()
             ids += YouTubeApi.parseSearchIds(Http.getJson(YouTubeApi.searchUrl(query, key, creativeCommonsOnly = true)))
             // Official distributor channels: their own uploads under the standard YouTube licence.
@@ -194,8 +242,13 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
                 val channel = k.removePrefix("youtube:")
                 ids += runCatching { YouTubeApi.parseSearchIds(Http.getJson(YouTubeApi.searchUrl(query, key, false, channel))) }.getOrDefault(emptyList())
             }
-            if (ids.isEmpty()) emptyList() else YouTubeApi.parseVideos(Http.getJson(YouTubeApi.videosUrl(ids.distinct().take(50), key)))
-        }.getOrDefault(emptyList())
+            (if (ids.isEmpty()) emptyList<Source>() else YouTubeApi.parseVideos(Http.getJson(YouTubeApi.videosUrl(ids.distinct().take(50), key))))
+                .also { youtubeProblem = null }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            youtubeProblem = youtubeMessage(e); emptyList()
+        }
     }
 
     private suspend fun tmdbSearch(query: String): List<TitleInfo> {

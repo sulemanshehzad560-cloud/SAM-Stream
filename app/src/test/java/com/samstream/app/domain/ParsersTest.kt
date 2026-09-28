@@ -108,4 +108,16 @@ class ParsersTest {
         assertEquals(1977, list[0].year)
         assertEquals(MediaType.MOVIE, list[0].mediaType)
     }
+
+    @Test fun archiveMinYearFilter() {
+        val url = ArchiveApi.searchUrl(null, minYear = 1995)
+        assertTrue(java.net.URLDecoder.decode(url, "UTF-8").contains("year:[1995 TO 2100]"))
+        assertTrue(!java.net.URLDecoder.decode(ArchiveApi.searchUrl(null), "UTF-8").contains("year:["))
+    }
+
+    @Test fun googleErrorReasons() {
+        val e = com.samstream.app.net.HttpException(403, "x", """{"error":{"code":403,"message":"Requests from this Android client application <empty> are blocked.","status":"PERMISSION_DENIED","errors":[{"reason":"forbidden"}],"details":[{"reason":"API_KEY_ANDROID_APP_BLOCKED"}]}}""")
+        assertTrue(e.reasons.contains("api_key_android_app_blocked"))
+        assertEquals("", com.samstream.app.net.HttpException(500, "x", "not json").reasons)
+    }
 }

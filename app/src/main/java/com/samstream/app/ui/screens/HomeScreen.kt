@@ -81,6 +81,8 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
     val recents by vm.recents.collectAsStateWithLifecycle()
     val services by vm.services.collectAsStateWithLifecycle()
     val tmdbProblem by vm.tmdbProblem.collectAsStateWithLifecycle()
+    val youtubeProblem by vm.youtubeProblem.collectAsStateWithLifecycle()
+    val keyProblem = listOfNotNull(tmdbProblem, youtubeProblem).joinToString("\n\n").ifBlank { null }
     val settings by vm.settings.collectAsStateWithLifecycle()
 
     val titles = (home as? Load.Ready)?.value.orEmpty()
@@ -123,7 +125,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                 }
             }
 
-            if (category == null && tmdbProblem != null) item(key = "tmdb") {
+            if (keyProblem != null) item(key = "keyProblem") {
                 Row(
                     Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.errorContainer).clickable { nav.navigate("settings") }.padding(14.dp),
@@ -131,7 +133,7 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                 ) {
                     Icon(Icons.Outlined.Info, null, tint = MaterialTheme.colorScheme.onErrorContainer)
                     Spacer(Modifier.width(10.dp))
-                    Text(tmdbProblem!!, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
+                    Text(keyProblem, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
                 }
             }
 

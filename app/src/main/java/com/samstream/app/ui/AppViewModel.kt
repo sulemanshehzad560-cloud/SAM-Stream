@@ -47,6 +47,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _tmdbProblem = MutableStateFlow<String?>(null)
     val tmdbProblem: StateFlow<String?> = _tmdbProblem.asStateFlow()
 
+    private val _youtubeProblem = MutableStateFlow<String?>(null)
+    val youtubeProblem: StateFlow<String?> = _youtubeProblem.asStateFlow()
+
+    private val _ytKeyCheck = MutableStateFlow<String?>(null)
+    val ytKeyCheck: StateFlow<String?> = _ytKeyCheck.asStateFlow()
+
+    fun testYoutubeKey(key: String) = viewModelScope.launch {
+        _ytKeyCheck.value = "Checking…"
+        val problem = catalog.checkYoutubeKey(key)
+        if (problem != null) { _ytKeyCheck.value = "✗ $problem"; return@launch }
+        prefs.update { it.copy(youtubeKey = key) }
+        _ytKeyCheck.value = "✓ Key works and is saved. Loading YouTube films…"
+        loadHome()
+        val found = (_home.value as? Load.Ready)?.value?.count { t -> t.inApp.any { it.source.provider == com.samstream.app.domain.ProviderType.YOUTUBE } } ?: 0
+        _ytKeyCheck.value = catalog.youtubeProblem?.let { "✗ $it" }
+            ?: "✓ Key works and is saved. $found YouTube films on Home now."
+    }
+
     private val _keyCheck = MutableStateFlow<String?>(null)
     val keyCheck: StateFlow<String?> = _keyCheck.asStateFlow()
 
@@ -109,6 +127,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val page = if (_category.value == null) LocalDate.now().dayOfYear % 4 + 1 else 1
         _home.value = runCatching { catalog.browse(_category.value, page) }
             .fold({ Load.Ready(it) }, { Load.Failed("Couldn't load movies. Check your connection and try again.") })
+        _youtubeProblem.value = if (settings.value.youtubeKey.isBlank()) null else catalog.youtubeProblem
     }
 
     fun setQuery(q: String) {
@@ -174,7 +193,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateSettings(transform: (Settings) -> Settings) {
         val oldCountry = settings.value.country
+        val oldModern = settings.value.modernOnly
         prefs.update(transform)
-        if (settings.value.country != oldCountry) viewModelScope.launch { loadServices() }
+        if (settings.value.country != oldCountry || settings.value.modernOnly != oldModern) viewModelScope.launch { loadServices() }
+        if (settings.value.modernOnly != oldModern) refreshHome()
     }
 }

@@ -77,7 +77,7 @@ fun SearchScreen(vm: AppViewModel, nav: NavHostController) {
             Spacer(Modifier.width(10.dp))
             TextField(
                 value = query, onValueChange = vm::setQuery, singleLine = true,
-                placeholder = { Text("Movies, series, actors…") },
+                placeholder = { Text("Movies & series from 1995 on…") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Gold) },
                 trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Outlined.Close, "Clear") } },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -159,7 +159,7 @@ private fun Hint(onPick: (String) -> Unit) {
         )
         Text("TRY", style = MaterialTheme.typography.labelSmall, color = Gold, modifier = Modifier.padding(top = 26.dp, bottom = 10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Charlie Chaplin", "Buster Keaton", "Night of the Living Dead", "Sintel", "Nosferatu", "Big Buck Bunny", "His Girl Friday", "Popeye")
+            listOf("Sintel", "Big Buck Bunny", "Tears of Steel", "Cosmos Laundromat", "Spring", "Agent 327", "Sprite Fright", "Charge")
                 .forEach { q -> Pill(q, false, { onPick(q) }) }
         }
     }

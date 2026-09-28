@@ -60,6 +60,7 @@ private val countries = listOf("AE", "SA", "QA", "KW", "BH", "OM", "EG", "JO", "
 fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val keyCheck by vm.keyCheck.collectAsStateWithLifecycle()
+    val ytKeyCheck by vm.ytKeyCheck.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var tmdb by remember { mutableStateOf(s.tmdbKey) }
     var youtube by remember { mutableStateOf(s.youtubeKey) }
@@ -106,12 +107,29 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
         OutlinedTextField(youtube, { youtube = it }, label = { Text("YouTube Data API key") }, singleLine = true,
             shape = RoundedCornerShape(16.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Gold, focusedLabelColor = Gold, cursorColor = Gold, unfocusedBorderColor = Hairline),
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.cloud.google.com/apis/library/youtube.googleapis.com"))) }) {
-            Text("Get a YouTube API key", color = Gold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            GlassButton("Test key", { vm.testYoutubeKey(youtube) }, height = 44.dp)
+            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.cloud.google.com/apis/library/youtube.googleapis.com"))) }) {
+                Text("Get a YouTube API key", color = Gold)
+            }
+        }
+        ytKeyCheck?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall,
+                color = if (it.startsWith("✗")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
         }
         GoldButton("Save keys", { vm.updateSettings { it.copy(tmdbKey = tmdb, youtubeKey = youtube) }; vm.refreshHome() }, icon = null, height = 48.dp)
 
         Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Only 1995 and newer", style = MaterialTheme.typography.titleMedium)
+                Text("Hides older films and series everywhere in the app.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(colors = SwitchDefaults.colors(checkedTrackColor = Gold, checkedThumbColor = Color(0xFF1C1400)), checked = s.modernOnly,
+                onCheckedChange = { v -> vm.updateSettings { it.copy(modernOnly = v) } })
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Show unverified uploads", style = MaterialTheme.typography.titleMedium)
@@ -139,7 +157,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 "SAM Stream does not host any video.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text("SAM Stream 1.2", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("SAM Stream 1.3", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
     }
 }

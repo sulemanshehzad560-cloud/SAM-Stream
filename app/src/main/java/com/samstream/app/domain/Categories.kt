@@ -17,7 +17,6 @@ enum class Category(
     FAMILY("Family", "👨‍👩‍👧", "subject:(family OR animation OR cartoon OR children OR kids OR musical)", "family animated movie",
         browseCollections = "feature_films OR animationandcartoons"),
     SCIFI("Sci-Fi", "🚀", "subject:(\"science fiction\" OR sci-fi OR scifi OR fantasy)", "science fiction film"),
-    CLASSICS("Classics", "🎞️", null, "classic film", browseCollections = "feature_films OR silent_films OR film_noir"),
     ARABIC("Arabic", "🇦🇪", "language:(arabic OR ara)", "فيلم كامل", browseCollections = "feature_films OR opensource_movies"),
     HINDI("Hindi", "🇮🇳", "language:(hindi OR hin)", "hindi full movie", browseCollections = "feature_films OR opensource_movies"),
     ENGLISH("English", "🇬🇧", "language:(english OR eng)", "full movie english"),

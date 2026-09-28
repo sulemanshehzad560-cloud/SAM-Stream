@@ -23,6 +23,10 @@ object YouTubeApi {
             ),
         )
 
+    /** Costs 1 quota unit (a search costs 100). Succeeds only with a working key. */
+    fun checkUrl(key: String): String =
+        Http.url("https://www.googleapis.com/youtube/v3/videos", listOf("part" to "id", "id" to "YE7VzlLtp-4", "key" to key))
+
     fun parseSearchIds(json: JSONObject): List<String> =
         json.optJSONArray("items").objects().mapNotNull { it.optJSONObject("id")?.strOrNull("videoId") }
 

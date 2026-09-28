@@ -63,7 +63,7 @@ against the provider's latest metadata when you press play.
 — without shipping an app update. The in-app **Report a rights problem** button opens a pre-filled GitHub issue here.
 
 ## Features
-- Home: "What do you want to watch?", search, category chips (🍿 Tonight, 💥 Action, 😂 Comedy, 👻 Horror, 👨‍👩‍👧 Family, 🚀 Sci-Fi, 🎞️ Classics, 🇦🇪 Arabic, 🇮🇳 Hindi, 🇬🇧 English, 📺 Series), rotating "Tonight's free movies", Continue watching with progress.
+- Home: "What do you want to watch?", search, category chips (🍿 Tonight, 💥 Action, 😂 Comedy, 👻 Horror, 👨‍👩‍👧 Family, 🚀 Sci-Fi, 🇦🇪 Arabic, 🇮🇳 Hindi, 🇬🇧 English, 📺 Series), rotating "Tonight's free movies", Continue watching with progress.
 - Search across all sources with one box; results show **▶ Free in app**, **Free on Tubi ↗** or **No free legal source**.
 - Title page with every source, its rights badge and the exact reason ("Public domain — in Internet Archive's curated public-domain film collection").
 - Full-screen landscape player (Media3/ExoPlayer) with resume; YouTube's official embedded player for YouTube sources.

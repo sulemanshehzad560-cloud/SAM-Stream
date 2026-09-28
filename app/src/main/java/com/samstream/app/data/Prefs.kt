@@ -15,7 +15,11 @@ data class Settings(
     val tmdbKey: String,
     val youtubeKey: String,
     val showUnverified: Boolean,
+    /** Hide anything released before [MIN_YEAR]. On by default. */
+    val modernOnly: Boolean = true,
 )
+
+const val MIN_YEAR = 1995
 
 /** Something the user started watching, so it can be resumed from "Continue watching". */
 data class Recent(
@@ -45,13 +49,14 @@ class Prefs(context: Context) {
         tmdbKey = cleanKey(sp.getString("tmdbKey", null) ?: BuildConfig.TMDB_API_KEY),
         youtubeKey = cleanKey(sp.getString("youtubeKey", null) ?: BuildConfig.YOUTUBE_API_KEY),
         showUnverified = sp.getBoolean("showUnverified", false),
+        modernOnly = sp.getBoolean("modernOnly", true),
     )
 
     fun update(transform: (Settings) -> Settings) {
         val t = transform(_settings.value)
         val s = t.copy(country = t.country.uppercase(), tmdbKey = cleanKey(t.tmdbKey), youtubeKey = cleanKey(t.youtubeKey))
         sp.edit().putString("country", s.country).putString("tmdbKey", s.tmdbKey)
-            .putString("youtubeKey", s.youtubeKey).putBoolean("showUnverified", s.showUnverified).apply()
+            .putString("youtubeKey", s.youtubeKey).putBoolean("showUnverified", s.showUnverified).putBoolean("modernOnly", s.modernOnly).apply()
         _settings.value = s
     }
 

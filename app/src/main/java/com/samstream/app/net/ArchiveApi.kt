@@ -23,7 +23,7 @@ object ArchiveApi {
      * @param filter extra Lucene clause, e.g. a category's subject filter
      * @param collections restricts to these collections; defaults to all film collections for search
      */
-    fun searchUrl(text: String?, filter: String? = null, rows: Int = 50, page: Int = 1, collections: String = COLLECTIONS): String {
+    fun searchUrl(text: String?, filter: String? = null, rows: Int = 50, page: Int = 1, collections: String = COLLECTIONS, minYear: Int? = null): String {
         val q = buildString {
             append("mediatype:(movies) AND collection:($collections)")
             if (!text.isNullOrBlank()) {
@@ -33,6 +33,7 @@ object ArchiveApi {
                 append(" AND $EXCLUDE_ADULT")
             }
             if (!filter.isNullOrBlank()) append(" AND ($filter)")
+            if (minYear != null) append(" AND year:[$minYear TO 2100]")
         }
         val fields = listOf("identifier", "title", "year", "date", "description", "licenseurl", "collection", "subject", "runtime", "language")
         return Http.url(

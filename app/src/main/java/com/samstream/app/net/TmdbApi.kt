@@ -32,14 +32,14 @@ object TmdbApi {
     }
 
     /** Popular movies that are free or free-with-ads on a streaming service in [country] (JustWatch data). */
-    fun discoverFreeUrl(key: String, country: String, page: Int = 1): Pair<String, Map<String, String>> {
+    fun discoverFreeUrl(key: String, country: String, page: Int = 1, minYear: Int? = null): Pair<String, Map<String, String>> {
         val (params, headers) = auth(key)
         return Http.url(
             "https://api.themoviedb.org/3/discover/movie",
             params + listOf(
                 "watch_region" to country.uppercase(), "with_watch_monetization_types" to "free|ads",
                 "sort_by" to "popularity.desc", "include_adult" to "false", "language" to "en-US", "page" to page.toString(),
-            ),
+            ) + listOfNotNull(minYear?.let { "primary_release_date.gte" to "$it-01-01" }),
         ) to headers
     }
 

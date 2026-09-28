@@ -9,7 +9,18 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 
-class HttpException(val code: Int, message: String) : Exception(message)
+class HttpException(val code: Int, message: String, val body: String = "") : Exception(message) {
+    /** Google-style error reasons ("keyInvalid", "quotaExceeded", "API_KEY_ANDROID_APP_BLOCKED"…) and message, lower-cased. */
+    val reasons: String by lazy {
+        runCatching {
+            val e = JSONObject(body).optJSONObject("error") ?: return@runCatching ""
+            val parts = mutableListOf(e.optString("message"), e.optString("status"))
+            e.optJSONArray("errors").objects().forEach { parts += it.optString("reason") }
+            e.optJSONArray("details").objects().forEach { parts += it.optString("reason") }
+            parts.joinToString(" ").lowercase()
+        }.getOrDefault("")
+    }
+}
 
 /** Tiny JSON-over-HTTPS client with a short in-memory cache. Plain JVM so it also runs in unit tests. */
 object Http {
@@ -35,7 +46,7 @@ object Http {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) throw HttpException(code, "HTTP $code for ${url.substringBefore('?')}")
+            if (code !in 200..299) throw HttpException(code, "HTTP $code for ${url.substringBefore('?')}", body)
             cache[url] = Cached(System.currentTimeMillis(), body)
             JSONObject(body)
         } finally {
