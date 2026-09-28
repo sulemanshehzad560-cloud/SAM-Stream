@@ -45,6 +45,7 @@ private val countries = listOf("AE", "SA", "QA", "KW", "BH", "OM", "EG", "JO", "
 @Composable
 fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
     val s by vm.settings.collectAsStateWithLifecycle()
+    val keyCheck by vm.keyCheck.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var tmdb by remember { mutableStateOf(s.tmdbKey) }
     var youtube by remember { mutableStateOf(s.youtubeKey) }
@@ -75,7 +76,14 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
         )
         OutlinedTextField(tmdb, { tmdb = it }, label = { Text("TMDB API key or read token") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org/settings/api"))) }) { Text("Get a free TMDB key") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { vm.testTmdbKey(tmdb) }) { Text("Test key") }
+            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org/settings/api"))) }) { Text("Get a free TMDB key") }
+        }
+        keyCheck?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall,
+                color = if (it.startsWith("✗")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         OutlinedTextField(youtube, { youtube = it }, label = { Text("YouTube Data API key") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
         TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.cloud.google.com/apis/library/youtube.googleapis.com"))) }) {
@@ -111,7 +119,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 "SAM Stream does not host any video.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text("SAM Stream 1.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("SAM Stream 1.1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(24.dp))
     }
 }

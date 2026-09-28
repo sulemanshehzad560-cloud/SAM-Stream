@@ -90,4 +90,22 @@ class ParsersTest {
         assertTrue(svc.all { it.playback == PlaybackKind.EXTERNAL_APP })
         assertTrue(TmdbApi.parseFreeProviders(details, full, "AE").isEmpty())
     }
+
+    @Test fun pastedKeysLoseInvisibleCharacters() {
+        val key = "abcdef0123456789abcdef0123456789"
+        assertEquals(key, com.samstream.app.data.cleanKey(" \u200B${key.take(10)}\u00A0${key.drop(10)}\n"))
+        val token = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJ4In0.sig-_part"
+        assertEquals(token, com.samstream.app.data.cleanKey("$token\u200B "))
+    }
+
+    @Test fun tmdbDiscoverFreeMovies() {
+        val (url, headers) = TmdbApi.discoverFreeUrl("abcdef0123456789abcdef0123456789", "ae")
+        assertTrue(url.contains("watch_region=AE"))
+        assertTrue(url.contains("with_watch_monetization_types=free%7Cads"))
+        assertTrue(headers.isEmpty())
+        val list = TmdbApi.parseDiscover(JSONObject("""{"results":[{"id":11,"title":"Star Wars","release_date":"1977-05-25","poster_path":"/p.jpg"},{"id":0,"title":"Bad"}]}"""))
+        assertEquals(1, list.size)
+        assertEquals(1977, list[0].year)
+        assertEquals(MediaType.MOVIE, list[0].mediaType)
+    }
 }

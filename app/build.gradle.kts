@@ -12,8 +12,8 @@ android {
         applicationId = "com.samstream.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         // Optional default API keys injected at build time (e.g. from CI secrets). Users can also enter keys in Settings.
         buildConfigField("String", "TMDB_API_KEY", "\"${System.getenv("TMDB_API_KEY") ?: ""}\"")
         // GitHub repo that hosts the live rights policy (trusted channels, takedowns) and receives rights reports.

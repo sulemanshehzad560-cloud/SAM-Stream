@@ -25,6 +25,27 @@ object TmdbApi {
         return Http.url("https://api.themoviedb.org/3/search/multi", params + listOf("query" to query, "include_adult" to "false", "language" to language)) to headers
     }
 
+    /** Cheap call that only succeeds with a valid key or token. */
+    fun checkUrl(key: String): Pair<String, Map<String, String>> {
+        val (params, headers) = auth(key)
+        return Http.url("https://api.themoviedb.org/3/configuration", params) to headers
+    }
+
+    /** Popular movies that are free or free-with-ads on a streaming service in [country] (JustWatch data). */
+    fun discoverFreeUrl(key: String, country: String, page: Int = 1): Pair<String, Map<String, String>> {
+        val (params, headers) = auth(key)
+        return Http.url(
+            "https://api.themoviedb.org/3/discover/movie",
+            params + listOf(
+                "watch_region" to country.uppercase(), "with_watch_monetization_types" to "free|ads",
+                "sort_by" to "popularity.desc", "include_adult" to "false", "language" to "en-US", "page" to page.toString(),
+            ),
+        ) to headers
+    }
+
+    fun parseDiscover(json: JSONObject, type: MediaType = MediaType.MOVIE): List<TitleInfo> =
+        json.optJSONArray("results").objects().mapNotNull { parseTitle(it, type) }
+
     fun detailsUrl(type: MediaType, id: Int, key: String): Pair<String, Map<String, String>> {
         val (params, headers) = auth(key)
         val path = if (type == MediaType.SERIES) "tv" else "movie"

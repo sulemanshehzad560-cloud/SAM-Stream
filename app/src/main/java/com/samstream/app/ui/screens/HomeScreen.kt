@@ -53,6 +53,9 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
     val home by vm.home.collectAsStateWithLifecycle()
     val category by vm.category.collectAsStateWithLifecycle()
     val recents by vm.recents.collectAsStateWithLifecycle()
+    val services by vm.services.collectAsStateWithLifecycle()
+    val tmdbProblem by vm.tmdbProblem.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -108,6 +111,28 @@ fun HomeScreen(vm: AppViewModel, nav: NavHostController) {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if (category == null && services.isNotEmpty()) {
+            item(span = { GridItemSpan(3) }) {
+                Column {
+                    Text("Free on streaming apps in ${java.util.Locale("", settings.country).displayCountry}", style = MaterialTheme.typography.titleMedium)
+                    Text("Licensed free or with ads · opens in their app · via TMDB/JustWatch", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
+                        items(services, key = { it.key }) { t ->
+                            TitleCard(t, onClick = { vm.open(t); nav.navigate("title") }, modifier = Modifier.width(110.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (category == null && tmdbProblem != null) {
+            item(span = { GridItemSpan(3) }) {
+                Surface(onClick = { nav.navigate("settings") }, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.errorContainer) {
+                    Text(tmdbProblem!!, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
                 }
             }
         }

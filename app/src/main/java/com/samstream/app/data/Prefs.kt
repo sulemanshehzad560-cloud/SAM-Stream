@@ -42,16 +42,17 @@ class Prefs(context: Context) {
 
     private fun readSettings() = Settings(
         country = sp.getString("country", null) ?: Locale.getDefault().country.ifBlank { "AE" },
-        tmdbKey = sp.getString("tmdbKey", null) ?: BuildConfig.TMDB_API_KEY,
-        youtubeKey = sp.getString("youtubeKey", null) ?: BuildConfig.YOUTUBE_API_KEY,
+        tmdbKey = cleanKey(sp.getString("tmdbKey", null) ?: BuildConfig.TMDB_API_KEY),
+        youtubeKey = cleanKey(sp.getString("youtubeKey", null) ?: BuildConfig.YOUTUBE_API_KEY),
         showUnverified = sp.getBoolean("showUnverified", false),
     )
 
     fun update(transform: (Settings) -> Settings) {
-        val s = transform(_settings.value)
-        sp.edit().putString("country", s.country.uppercase()).putString("tmdbKey", s.tmdbKey.trim())
-            .putString("youtubeKey", s.youtubeKey.trim()).putBoolean("showUnverified", s.showUnverified).apply()
-        _settings.value = s.copy(country = s.country.uppercase(), tmdbKey = s.tmdbKey.trim(), youtubeKey = s.youtubeKey.trim())
+        val t = transform(_settings.value)
+        val s = t.copy(country = t.country.uppercase(), tmdbKey = cleanKey(t.tmdbKey), youtubeKey = cleanKey(t.youtubeKey))
+        sp.edit().putString("country", s.country).putString("tmdbKey", s.tmdbKey)
+            .putString("youtubeKey", s.youtubeKey).putBoolean("showUnverified", s.showUnverified).apply()
+        _settings.value = s
     }
 
     var cachedPolicy: String?
@@ -91,3 +92,10 @@ class Prefs(context: Context) {
         saveProgress(r.copy(positionMs = Long.MAX_VALUE, durationMs = 1))
     }
 }
+
+/**
+ * API keys and tokens only contain letters, digits, '.', '_' and '-'. Copying from a phone browser often
+ * adds spaces, line breaks or invisible characters (zero-width space, no-break space), which make the
+ * provider reject the key. Strip everything else.
+ */
+fun cleanKey(raw: String): String = raw.filter { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' || it == '-' }

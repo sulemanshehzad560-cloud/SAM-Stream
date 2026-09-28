@@ -40,6 +40,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _home = MutableStateFlow<Load<List<Title>>>(Load.Loading)
     val home: StateFlow<Load<List<Title>>> = _home.asStateFlow()
 
+    /** "Free on streaming apps" row, filled from TMDB when a key is set. Empty when there's no key. */
+    private val _services = MutableStateFlow<List<Title>>(emptyList())
+    val services: StateFlow<List<Title>> = _services.asStateFlow()
+
+    private val _tmdbProblem = MutableStateFlow<String?>(null)
+    val tmdbProblem: StateFlow<String?> = _tmdbProblem.asStateFlow()
+
+    private val _keyCheck = MutableStateFlow<String?>(null)
+    val keyCheck: StateFlow<String?> = _keyCheck.asStateFlow()
+
+    fun testTmdbKey(key: String) = viewModelScope.launch {
+        _keyCheck.value = "Checking…"
+        val problem = catalog.checkTmdbKey(key)
+        if (problem != null) { _keyCheck.value = "✗ $problem"; return@launch }
+        prefs.update { it.copy(tmdbKey = key) }
+        _keyCheck.value = "✓ Key works and is saved. Loading free movies…"
+        loadServices()
+        _keyCheck.value = if (_services.value.isEmpty())
+            "✓ Key works and is saved. TMDB lists no free or free-with-ads streaming titles for ${settings.value.country} right now. Search still shows posters and details, and you can try another country."
+        else "✓ Key works and is saved. ${_services.value.size} free titles added to Home."
+    }
+
+    private suspend fun loadServices() {
+        _services.value = runCatching { catalog.freeOnServices() }.getOrDefault(emptyList())
+        _tmdbProblem.value = if (settings.value.tmdbKey.isBlank()) null else catalog.tmdbProblem
+    }
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -61,6 +88,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             catalog.refreshPolicy("https://raw.githubusercontent.com/${BuildConfig.REPO_SLUG}/main/app/src/main/assets/rights_policy.json")
+            launch { loadServices() }
             loadHome()
         }
     }
@@ -70,7 +98,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { loadHome() }
     }
 
-    fun refreshHome() = viewModelScope.launch { loadHome() }
+    fun refreshHome() = viewModelScope.launch {
+        launch { loadServices() }
+        loadHome()
+    }
 
     private suspend fun loadHome() {
         _home.value = Load.Loading
@@ -142,6 +173,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun removeRecent(r: Recent) = prefs.removeRecent(r.sourceId)
 
     fun updateSettings(transform: (Settings) -> Settings) {
+        val oldCountry = settings.value.country
         prefs.update(transform)
+        if (settings.value.country != oldCountry) viewModelScope.launch { loadServices() }
     }
 }

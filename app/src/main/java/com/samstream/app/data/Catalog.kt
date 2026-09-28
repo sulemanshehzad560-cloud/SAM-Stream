@@ -14,6 +14,7 @@ import com.samstream.app.domain.Titles
 import com.samstream.app.domain.VerifiedSource
 import com.samstream.app.net.ArchiveApi
 import com.samstream.app.net.Http
+import com.samstream.app.net.HttpException
 import com.samstream.app.net.TmdbApi
 import com.samstream.app.net.YouTubeApi
 import kotlinx.coroutines.async
@@ -74,6 +75,53 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
 
     private val settings get() = prefs.settings.value
 
+    /** Last TMDB problem in plain words, so a bad key is visible instead of silently returning nothing. */
+    @Volatile var tmdbProblem: String? = null
+        private set
+
+    private fun tmdbMessage(e: Throwable): String = when ((e as? HttpException)?.code) {
+        401 -> "TMDB rejected your key. In Settings, paste the \"API Read Access Token\" (long) or \"API Key\" (32 characters) again, then tap Test key."
+        404 -> "TMDB couldn't find that item."
+        429 -> "TMDB is busy (too many requests). Try again in a minute."
+        null -> "Couldn't reach TMDB. Check your connection."
+        else -> "TMDB error ${(e as HttpException).code}."
+    }
+
+    private suspend fun <T> tmdbCall(block: suspend () -> T): T? = try {
+        block().also { tmdbProblem = null }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        tmdbProblem = tmdbMessage(e); null
+    }
+
+    /** Checks a key before saving it. Returns null when it works, otherwise what's wrong. */
+    suspend fun checkTmdbKey(key: String): String? {
+        val k = cleanKey(key)
+        if (k.isEmpty()) return "Paste your TMDB key first."
+        return try {
+            val (url, headers) = TmdbApi.checkUrl(k)
+            Http.getJson(url, headers); null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            tmdbMessage(e)
+        }
+    }
+
+    /** Home row: popular movies that a licensed service offers free / with ads in the user's country. */
+    suspend fun freeOnServices(): List<Title> = coroutineScope {
+        val key = settings.tmdbKey.ifBlank { return@coroutineScope emptyList<Title>() }
+        val infos = tmdbCall {
+            val (url, headers) = TmdbApi.discoverFreeUrl(key, settings.country)
+            TmdbApi.parseDiscover(Http.getJson(url, headers))
+        }.orEmpty().take(18)
+        val withServices = infos.map { async { freeServices(it) } }.awaitAll()
+        val catalogue = withServices.map { it.first }
+        val merged = Titles.merge(verifyAll(withServices.flatMap { it.second }, catalogue), catalogue)
+        visible(merged, keepEmptyCatalogueTitles = false).filter { it.hasFreeLegalSource }
+    }
+
     private fun currentPolicy() = policy.copy(today = LocalDate.now())
 
     private fun verifyAll(sources: List<Source>, catalogue: List<TitleInfo>): List<VerifiedSource> {
@@ -129,6 +177,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
         val serviceSources = services.flatMap { it.second }
 
         if (settings.tmdbKey.isBlank()) notes += "Add a free TMDB key in Settings to see posters and free services like Tubi or Pluto TV in your country."
+        else tmdbProblem?.let { notes += it }
         if (settings.youtubeKey.isBlank()) notes += "Add a YouTube API key in Settings to include Creative Commons and official-channel films."
 
         val merged = Titles.merge(verifyAll(archiveSources + youtube.await() + serviceSources, enriched), enriched)
@@ -151,10 +200,10 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
 
     private suspend fun tmdbSearch(query: String): List<TitleInfo> {
         val key = settings.tmdbKey.ifBlank { return emptyList() }
-        return runCatching {
+        return tmdbCall {
             val (url, headers) = TmdbApi.searchUrl(query, key)
             TmdbApi.parseSearch(Http.getJson(url, headers)).take(12)
-        }.getOrDefault(emptyList())
+        }.orEmpty()
     }
 
     private suspend fun freeServices(info: TitleInfo): Pair<TitleInfo, List<Source>> {
