@@ -1,0 +1,94 @@
+name: Build APK
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      # Optional: bake default API keys into the APK (users can also enter their own in Settings).
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      OPENREEL_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Live source check (Internet Archive)
+        continue-on-error: true
+        env:
+          OPENREEL_LIVE_TESTS: "1"
+        run: ./gradlew testDebugUnitTest --tests '*LiveApiTest*' --rerun -i | grep -E "Archive returned|: (OPEN_LICENSE|AUTHORIZED|UNVERIFIED|BLOCKED)|Stream for|Home:|Category|FAILED|PASSED" || true
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenReel-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Build signed release APK
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          OPENREEL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          OPENREEL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          OPENREEL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          OPENREEL_KEYSTORE="$RUNNER_TEMP/release.jks" ./gradlew assembleRelease --stacktrace
+
+      # Every push to main publishes/updates the GitHub Release "v<versionName>" (from app/build.gradle.kts).
+      - name: Work out release version
+        id: version
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare release files
+        if: steps.version.outputs.tag != ''
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenReel.apk
+          if ls app/build/outputs/apk/release/*.apk >/dev/null 2>&1; then
+            cp app/build/outputs/apk/release/*.apk dist/OpenReel-signed.apk
+          fi
+
+      - name: Publish GitHub release
+        if: steps.version.outputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: OpenReel ${{ steps.version.outputs.tag }}
+          make_latest: true
+          files: dist/*.apk
+          body: |
+            **OpenReel** — free & legal movies and series. Search once, watch inside the app.
+
+            ### Install on Android
+            1. Download **OpenReel.apk** below — open this page in Chrome (not an in-app browser).
+            2. Open the file. If asked, allow Chrome/Files to "Install unknown apps".
+            3. If Play Protect warns, tap **More details → Install anyway**.
+
+            Requires Android 8.0 or newer.

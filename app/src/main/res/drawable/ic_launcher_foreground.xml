@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A film reel with a play triangle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFC83D"
+        android:pathData="M54,28a26,26 0,1 1,0 52a26,26 0,1 1,0 -52z" />
+    <path android:fillColor="#141018"
+        android:pathData="M54,33a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z M54,66a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z M37.5,49.5a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z M70.5,49.5a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z" />
+    <path android:fillColor="#E8364F"
+        android:pathData="M49,46.5l12,7.5 -12,7.5z" />
+</vector>
