@@ -94,37 +94,51 @@ object RightsEngine {
                 val curated = source.collections.any { it.lowercase() in policy.curatedPublicDomainCollections.map(String::lowercase) }
                 val isPublicDomain = "publicdomain" in lic
                 val isCreativeCommons = "creativecommons.org/licenses" in lic
+                val old = year != null && year < cutoff
+                val foreign = !isEnglish(source.language)
                 when {
-                    isPublicDomain && (curated || !modernCommercial) -> verdict(
-                        RightsLevel.OPEN_LICENSE,
-                        if (curated) "Public domain — in Internet Archive's curated public-domain film collection."
-                        else "Public domain${source.year?.let { " (published $it, before $cutoff)" } ?: ""}.",
-                    )
-                    isPublicDomain -> verdict(
-                        RightsLevel.UNVERIFIED,
-                        "Marked public domain by the uploader, but a $year film needs proof (e.g. copyright not renewed).",
-                    )
                     !curated && looksPirated(source) -> verdict(
                         RightsLevel.UNVERIFIED,
                         "The upload looks like a ripped copy (release-group markers), not a release by the rights holder.",
                     )
-                    isCreativeCommons && knownCommercialRelease && !curated -> verdict(
+                    old && (isPublicDomain || isCreativeCommons || curated) -> verdict(
+                        RightsLevel.OPEN_LICENSE,
+                        "Public domain: published in $year, more than 95 years ago.",
+                    )
+                    // The US restored copyright in foreign films in 1996 (URAA), even if formalities were missed.
+                    foreign -> verdict(
+                        RightsLevel.UNVERIFIED,
+                        "Non-US film${year?.let { " from $it" } ?: " of unknown date"} — likely still under copyright; needs confirmation from the rights holder.",
+                    )
+                    // Since 1978 works are protected without registration or notice, so an uploader's claim isn't proof.
+                    year != null && year >= 1978 -> verdict(
+                        RightsLevel.UNVERIFIED,
+                        "A $year film is protected by copyright automatically; the uploader's ${if (isCreativeCommons) "Creative Commons" else "public-domain"} claim isn't proof.",
+                    )
+                    curated && (isPublicDomain || lic.isEmpty()) -> verdict(
+                        RightsLevel.OPEN_LICENSE,
+                        "US film${year?.let { " from $it" } ?: ""} in Internet Archive's public-domain Feature Films collection (copyright not renewed or published without notice).",
+                    )
+                    isCreativeCommons && knownCommercialRelease -> verdict(
                         RightsLevel.UNVERIFIED,
                         "Creative Commons claimed for a $catalogueYear commercial film by an unverified uploader.",
                     )
-                    // Anyone can tick "Creative Commons" when uploading. For a modern film outside curated collections
-                    // that isn't proof the uploader owns it, so it stays unverified until individually approved.
-                    isCreativeCommons && modernCommercial && !curated -> verdict(
+                    isCreativeCommons && modernCommercial -> verdict(
                         RightsLevel.UNVERIFIED,
                         "Creative Commons claimed for a $year film by an unverified uploader — not played until the creator is confirmed.",
                     )
                     isCreativeCommons -> verdict(RightsLevel.OPEN_LICENSE, "${licenseName(lic)} licence set by the creator.")
-                    curated -> verdict(RightsLevel.OPEN_LICENSE, "In Internet Archive's curated public-domain Feature Films collection.")
+                    isPublicDomain -> verdict(RightsLevel.UNVERIFIED, "Marked public domain by the uploader, but the release date can't be confirmed.")
                     else -> verdict(RightsLevel.UNVERIFIED, "No licence information on this upload.")
                 }
             }
         }
     }
+
+    private val englishNames = setOf("english", "eng", "en", "en-us", "en-gb", "english (us)", "english (uk)")
+
+    /** Unknown language is treated as English: most Internet Archive film items without a language field are US films. */
+    fun isEnglish(language: String?): Boolean = language.isNullOrBlank() || language.trim().lowercase() in englishNames
 
     fun licenseName(url: String): String {
         val m = Regex("licenses/([a-z\\-]+)/([0-9.]+)").find(url.lowercase()) ?: return "Creative Commons"

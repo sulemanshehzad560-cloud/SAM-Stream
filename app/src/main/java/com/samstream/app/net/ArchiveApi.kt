@@ -64,6 +64,7 @@ object ArchiveApi {
             thumbnailUrl = "https://archive.org/services/img/$id",
             description = d.strOrNull("description")?.let(::stripHtml)?.take(600),
             subjects = d.strList("subject").take(6),
+            language = d.strOrNull("language"),
             mediaType = if (d.strList("collection").any { it.equals("classic_tv", true) }) MediaType.SERIES else MediaType.MOVIE,
         )
     }

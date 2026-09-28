@@ -34,12 +34,22 @@ Search "The Mask"
 
 | Evidence | Verdict |
 |---|---|
-| Internet Archive item with a Public Domain mark, in the curated `feature_films` collection or published before the US public-domain cutoff (current year − 95) | 🟢 Public domain |
-| Creative Commons licence set by the creator (Archive licence URL / YouTube `creativeCommon` licence) | 🟢 Open licence |
-| YouTube upload from a **trusted official distributor channel** listed in `rights_policy.json`, embedding enabled | 🟢 Authorized |
+| Film published more than 95 years ago (US public-domain term) | 🟢 Public domain |
+| US film from 1931–1977 in the Internet Archive's Feature Films collection (copyright not renewed / no notice) | 🟢 Public domain |
+| Creative Commons licence on an undated, non-commercial upload (e.g. independent shorts) | 🟢 Open licence |
+| YouTube upload with a Creative Commons licence, no sign it's a commercial film | 🟢 Open licence |
+| YouTube upload from a **trusted official distributor channel** (`trustedYouTubeChannels`), embedding enabled | 🟢 Authorized |
+| Source individually verified in `trustedSources` (e.g. a modern CC film confirmed on the creator's site) | 🟢 Authorized |
 | Service listed by TMDB/JustWatch as *free* or *ads* in your country | 🟢 Authorized (opens their app) |
-| Public-domain claim on a modern film outside curated collections; CC claim on a known commercial release (e.g. "The Mask (1994) Full Movie" from an unknown channel); standard licence from an unverified channel; no licence at all | 🟡 Not played |
+| **Non-US film from 1931 on** (US restored foreign copyrights in 1996) | 🟡 Not played |
+| **Any film from 1978 on** with only an uploader's public-domain / Creative Commons claim | 🟡 Not played |
+| Title with rip/release-group markers (720p, x264, WEB-DL, "@channel"…) | 🟡 Not played |
+| Creative Commons claim on a known commercial release; standard licence from an unverified channel; no licence at all | 🟡 Not played |
 | Embedding disabled by the owner, or listed in `blockedSources` | 🔴 Excluded |
+
+These rules come from live data: the Internet Archive's Feature Films collection turned out to contain pirated modern
+Bollywood films (e.g. *Haider*, 2014) tagged as public domain / Creative Commons, so collection membership alone is never
+treated as permission. The CI "Live source check" prints what each home row would show so regressions are visible.
 
 Country restrictions (YouTube region rules, TMDB per-country providers) are applied too. Rights are re-checked
 against the provider's latest metadata when you press play.

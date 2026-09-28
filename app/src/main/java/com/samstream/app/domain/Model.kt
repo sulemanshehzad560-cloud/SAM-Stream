@@ -45,6 +45,8 @@ data class Source(
     val thumbnailUrl: String? = null,
     val description: String? = null,
     val subjects: List<String> = emptyList(),
+    /** Original language as reported by the provider ("English", "hin", …). */
+    val language: String? = null,
     val mediaType: MediaType = MediaType.MOVIE,
 )
 

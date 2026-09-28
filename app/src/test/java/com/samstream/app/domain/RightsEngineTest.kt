@@ -14,10 +14,10 @@ class RightsEngineTest {
         today = LocalDate.of(2026, 9, 28),
     )
 
-    private fun ia(id: String, year: Int?, license: String?, collections: List<String>) = Source(
+    private fun ia(id: String, year: Int?, license: String?, collections: List<String>, language: String? = null) = Source(
         id = "ia:$id", provider = ProviderType.INTERNET_ARCHIVE, providerName = "Internet Archive", title = id, year = year,
         pageUrl = "https://archive.org/details/$id", playback = PlaybackKind.DIRECT_VIDEO, streamRef = id,
-        licenseUrl = license, collections = collections,
+        licenseUrl = license, collections = collections, language = language,
     )
 
     private fun yt(title: String, license: String, channel: String = "UC_RANDOM", embeddable: Boolean = true, allowed: Set<String>? = null) = Source(
@@ -57,6 +57,19 @@ class RightsEngineTest {
         val trusted = RightsEngine.verify(ia("sintel_verified", 2010, "https://creativecommons.org/licenses/by/3.0/", listOf("opensource_movies")), policy, "AE")
         assertEquals(RightsLevel.AUTHORIZED, trusted.level)
         assertTrue(trusted.playableInApp)
+    }
+
+    @Test fun collectionMembershipIsNotEnoughForModernOrForeignFilms() {
+        // Real items found in the Feature Films collection during a live check.
+        val pd = "http://creativecommons.org/publicdomain/mark/1.0/"
+        assertEquals(RightsLevel.UNVERIFIED, RightsEngine.verify(ia("rockstar", 2011, null, listOf("feature_films"), "Hindi"), policy, "AE").level)
+        assertEquals(RightsLevel.UNVERIFIED, RightsEngine.verify(ia("padosan", 1978, pd, listOf("feature_films"), "hin"), policy, "AE").level)
+        assertEquals(RightsLevel.UNVERIFIED, RightsEngine.verify(ia("sobibor", 1987, pd, listOf("feature_films"), "English"), policy, "AE").level)
+        assertEquals(RightsLevel.UNVERIFIED, RightsEngine.verify(ia("mummy", 1969, null, listOf("feature_films"), "Arabic"), policy, "AE").level)
+        // Old foreign films are fine: over 95 years.
+        assertTrue(RightsEngine.verify(ia("nosferatu", 1922, pd, listOf("feature_films"), "German"), policy, "AE").playableInApp)
+        // US films from 1931–1977 in the curated collection play (non-renewed copyrights).
+        assertTrue(RightsEngine.verify(ia("his_girl_friday", 1940, pd, listOf("feature_films"), "English"), policy, "AE").playableInApp)
     }
 
     @Test fun pirateUploadsFromLiveDataAreNotPlayed() {
