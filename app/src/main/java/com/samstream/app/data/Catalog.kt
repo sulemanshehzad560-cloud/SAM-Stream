@@ -64,6 +64,7 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
         RightsPolicy(
             trustedUploaders = channels?.keys()?.asSequence()?.associate { "youtube:$it" to channels.getString(it) } ?: emptyMap(),
             blockedSources = o.optJSONArray("blockedSources")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet(),
+            trustedSources = o.optJSONArray("trustedSources")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet(),
             curatedPublicDomainCollections = o.optJSONArray("curatedPublicDomainCollections")
                 ?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: setOf("feature_films"),
         )

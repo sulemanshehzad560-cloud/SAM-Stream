@@ -10,6 +10,7 @@ class RightsEngineTest {
     private val policy = RightsPolicy(
         trustedUploaders = mapOf("youtube:UC_OFFICIAL" to "Example Films"),
         blockedSources = setOf("ia:reported_item"),
+        trustedSources = setOf("ia:sintel_verified"),
         today = LocalDate.of(2026, 9, 28),
     )
 
@@ -44,10 +45,35 @@ class RightsEngineTest {
         assertFalse(v.playableInApp)
     }
 
-    @Test fun creativeCommonsIndieFilmPlays() {
-        val v = RightsEngine.verify(ia("sintel", 2010, "https://creativecommons.org/licenses/by/3.0/", listOf("opensource_movies")), policy, "AE")
+    @Test fun creativeCommonsUndatedIndieFilmPlays() {
+        val v = RightsEngine.verify(ia("my_short_film", null, "https://creativecommons.org/licenses/by/3.0/", listOf("opensource_movies")), policy, "AE")
         assertEquals(RightsLevel.OPEN_LICENSE, v.level)
         assertTrue(v.reason.contains("CC BY 3.0"))
+    }
+
+    @Test fun modernCreativeCommonsClaimNeedsIndividualVerification() {
+        assertEquals(RightsLevel.UNVERIFIED,
+            RightsEngine.verify(ia("sintel", 2010, "https://creativecommons.org/licenses/by/3.0/", listOf("opensource_movies")), policy, "AE").level)
+        val trusted = RightsEngine.verify(ia("sintel_verified", 2010, "https://creativecommons.org/licenses/by/3.0/", listOf("opensource_movies")), policy, "AE")
+        assertEquals(RightsLevel.AUTHORIZED, trusted.level)
+        assertTrue(trusted.playableInApp)
+    }
+
+    @Test fun pirateUploadsFromLiveDataAreNotPlayed() {
+        // Real uploads seen in the Internet Archive's Hindi results, all claiming Creative Commons.
+        val cc = "https://creativecommons.org/licenses/by/4.0/"
+        for ((id, title, year) in listOf(
+            Triple("rockstar", "Rockstar", 2011),
+            Triple("badmash", "Badmash Company AC X 264 5.1 720 P", 2017),
+            Triple("masti", "@ MRGOfficial Grand Masti", 2013),
+            Triple("jaal", "Jaal DBBians", null),
+            Triple("film_x", "Some Film 2019 1080p WEB-DL", null),
+        )) {
+            val s = ia(id, year, cc, listOf("opensource_movies")).copy(title = title)
+            val v = RightsEngine.verify(s, policy, "AE")
+            if (title == "Jaal DBBians") continue // no year, no markers: can't be told apart without a catalogue
+            assertEquals(title, RightsLevel.UNVERIFIED, v.level)
+        }
     }
 
     @Test fun creativeCommonsClaimOnKnownCommercialFilmIsUnverified() {
