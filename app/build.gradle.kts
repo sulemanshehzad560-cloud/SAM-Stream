@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.openreel.app"
+    namespace = "com.samstream.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.openreel.app"
+        applicationId = "com.samstream.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -17,19 +17,19 @@ android {
         // Optional default API keys injected at build time (e.g. from CI secrets). Users can also enter keys in Settings.
         buildConfigField("String", "TMDB_API_KEY", "\"${System.getenv("TMDB_API_KEY") ?: ""}\"")
         // GitHub repo that hosts the live rights policy (trusted channels, takedowns) and receives rights reports.
-        val repoSlug = System.getenv("OPENREEL_REPO") ?: "sulemanshehzad560-cloud/OpenReel"
+        val repoSlug = System.getenv("SAMSTREAM_REPO") ?: "sulemanshehzad560-cloud/SAM-Stream"
         buildConfigField("String", "REPO_SLUG", "\"$repoSlug\"")
         buildConfigField("String", "YOUTUBE_API_KEY", "\"${System.getenv("YOUTUBE_API_KEY") ?: ""}\"")
     }
 
-    val keystorePath = System.getenv("OPENREEL_KEYSTORE")
+    val keystorePath = System.getenv("SAMSTREAM_KEYSTORE")
     signingConfigs {
         if (keystorePath != null && file(keystorePath).exists()) {
             create("release") {
                 storeFile = file(keystorePath)
-                storePassword = System.getenv("OPENREEL_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("OPENREEL_KEY_ALIAS")
-                keyPassword = System.getenv("OPENREEL_KEY_PASSWORD")
+                storePassword = System.getenv("SAMSTREAM_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SAMSTREAM_KEY_ALIAS")
+                keyPassword = System.getenv("SAMSTREAM_KEY_PASSWORD")
             }
         }
     }

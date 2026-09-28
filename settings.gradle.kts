@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "OpenReel"
+rootProject.name = "SAMStream"
 include(":app")

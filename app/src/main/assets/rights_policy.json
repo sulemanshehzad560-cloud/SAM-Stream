@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "comment": "Rights policy for OpenReel. trustedYouTubeChannels: channel id -> distributor name, ONLY for channels you have verified are the official rights holder/distributor (e.g. via the distributor's website linking the channel, or a written agreement). blockedSources: source ids (e.g. 'ia:identifier', 'yt:videoId') removed after a rights report. The app fetches the latest copy of this file from the repository at startup, so edits here take effect without an app update.",
+  "comment": "Rights policy for SAM Stream. trustedYouTubeChannels: channel id -> distributor name, ONLY for channels you have verified are the official rights holder/distributor (e.g. via the distributor's website linking the channel, or a written agreement). blockedSources: source ids (e.g. 'ia:identifier', 'yt:videoId') removed after a rights report. The app fetches the latest copy of this file from the repository at startup, so edits here take effect without an app update.",
   "trustedYouTubeChannels": {},
   "blockedSources": [],
   "curatedPublicDomainCollections": ["feature_films"]

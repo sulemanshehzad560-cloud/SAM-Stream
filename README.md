@@ -1,13 +1,13 @@
-# OpenReel
+# SAM Stream
 
 **Free & legal movies and series. Search once, watch inside the app.**
 
-OpenReel searches sources that *explicitly permit* free viewing, checks the rights of every source, and plays the
+SAM Stream searches sources that *explicitly permit* free viewing, checks the rights of every source, and plays the
 permitted ones in its own player. It never hosts video and never plays a source whose permission is unclear.
 
 ## Download
 
-**[⬇️ Download OpenReel.apk (latest)](https://github.com/sulemanshehzad560-cloud/OpenReel/releases/latest/download/OpenReel.apk)**
+**[⬇️ Download SAMStream.apk (latest)](https://github.com/sulemanshehzad560-cloud/SAM-Stream/releases/latest/download/SAMStream.apk)**
 — open the link in **Chrome** on your Android phone (8.0+), then open the file and allow "Install unknown apps".
 
 ## How it works
