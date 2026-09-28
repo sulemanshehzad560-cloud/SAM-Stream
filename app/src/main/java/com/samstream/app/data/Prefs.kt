@@ -85,7 +85,9 @@ class Prefs(context: Context) {
 
     fun positionFor(sourceId: String): Long = _recents.value.firstOrNull { it.sourceId == sourceId }?.positionMs ?: 0L
 
-    fun removeRecent(sourceId: String) = saveProgress(
-        _recents.value.firstOrNull { it.sourceId == sourceId }?.copy(positionMs = Long.MAX_VALUE, durationMs = 1) ?: return,
-    )
+    fun removeRecent(sourceId: String) {
+        val r = _recents.value.firstOrNull { it.sourceId == sourceId } ?: return
+        // Saving it as "finished" drops it from the list.
+        saveProgress(r.copy(positionMs = Long.MAX_VALUE, durationMs = 1))
+    }
 }
