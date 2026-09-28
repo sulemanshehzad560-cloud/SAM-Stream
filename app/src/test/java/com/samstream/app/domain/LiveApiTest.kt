@@ -29,15 +29,18 @@ class LiveApiTest {
 
     @Test fun browseHomeReturnsTitles() = runBlocking {
         assumeTrue(enabled)
-        val sources = ArchiveApi.parseSearch(Http.getJson(ArchiveApi.searchUrl(null, null, rows = 60)))
-        val verified = sources.map { VerifiedSource(it, RightsEngine.verify(it, RightsPolicy(), "AE")) }
-        val titles = Titles.merge(verified, emptyList()).filter { it.inApp.isNotEmpty() }
-        println("Home: ${titles.size} playable titles, e.g. " + titles.take(8).joinToString { "${it.name} (${it.year})" })
-        assertTrue(titles.size >= 10)
-        for (c in Category.entries) {
-            val n = runCatching { ArchiveApi.parseSearch(Http.getJson(ArchiveApi.searchUrl(null, c.archiveFilter, rows = 60))) }.getOrDefault(emptyList())
-                .count { RightsEngine.verify(it, RightsPolicy(), "AE").playableInApp }
-            println("Category ${c.label}: $n playable")
+        fun playable(category: Category?): List<Title> {
+            val url = ArchiveApi.searchUrl(null, category?.archiveFilter, rows = 60, collections = category?.browseCollections ?: "feature_films")
+            val sources = runCatching { runBlocking { ArchiveApi.parseSearch(Http.getJson(url)) } }.getOrDefault(emptyList())
+            val verified = sources.map { VerifiedSource(it, RightsEngine.verify(it, RightsPolicy(), "AE")) }
+            return Titles.merge(verified, emptyList()).filter { it.inApp.isNotEmpty() }
         }
+        for (c in Category.entries) {
+            val t = playable(c)
+            println("Category ${c.label}: ${t.size} playable, e.g. " + t.take(5).joinToString { "${it.name} (${it.year})" })
+        }
+        val home = playable(null)
+        println("Home: ${home.size} playable titles, e.g. " + home.take(10).joinToString { "${it.name} (${it.year})" })
+        assertTrue(home.size >= 20)
     }
 }

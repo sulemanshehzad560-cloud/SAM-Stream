@@ -15,12 +15,22 @@ object ArchiveApi {
     private const val COLLECTIONS =
         "feature_films OR opensource_movies OR animationandcartoons OR classic_tv OR silent_films OR comedy_films OR scifi_horror OR film_noir OR short_films"
 
-    fun searchUrl(text: String?, filter: String? = null, rows: Int = 50, page: Int = 1): String {
+    /** Keeps the home feed family-friendly: adult/exploitation titles are only reachable by explicit search. */
+    private const val EXCLUDE_ADULT = "-subject:(sex OR sexual OR erotic OR erotica OR adult OR nudity OR nude OR exploitation OR sexploitation)"
+
+    /**
+     * @param text free-text title search (null for browsing)
+     * @param filter extra Lucene clause, e.g. a category's subject filter
+     * @param collections restricts to these collections; defaults to all film collections for search
+     */
+    fun searchUrl(text: String?, filter: String? = null, rows: Int = 50, page: Int = 1, collections: String = COLLECTIONS): String {
         val q = buildString {
-            append("mediatype:(movies) AND collection:($COLLECTIONS)")
+            append("mediatype:(movies) AND collection:($collections)")
             if (!text.isNullOrBlank()) {
                 val words = text.trim().replace(Regex("[^\\p{L}\\p{N} ]"), " ").split(Regex("\\s+")).filter { it.isNotEmpty() }
                 if (words.isNotEmpty()) append(" AND title:(${words.joinToString(" AND ")})")
+            } else {
+                append(" AND $EXCLUDE_ADULT")
             }
             if (!filter.isNullOrBlank()) append(" AND ($filter)")
         }

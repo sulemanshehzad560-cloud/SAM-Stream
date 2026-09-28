@@ -100,7 +100,10 @@ class Catalog(private val context: Context, private val prefs: Prefs) {
 
     suspend fun browse(category: Category?, page: Int = 1): List<Title> = coroutineScope {
         val archive = async {
-            runCatching { ArchiveApi.parseSearch(Http.getJson(ArchiveApi.searchUrl(null, category?.archiveFilter, rows = 60, page = page))) }
+            runCatching {
+                val url = ArchiveApi.searchUrl(null, category?.archiveFilter, rows = 60, page = page, collections = category?.browseCollections ?: "feature_films")
+                ArchiveApi.parseSearch(Http.getJson(url))
+            }
                 .getOrDefault(emptyList())
         }
         val youtube = async { if (category != null) youtubeSearch(category.youtubeQuery) else emptyList() }
